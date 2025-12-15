@@ -219,6 +219,55 @@ except ImportError:
     from unidecode import unidecode
     print("Unidecode successfully installed and imported.")
 
+# --- C7. Consolidated NLTK Installlation and Import ---
+try:
+    import nltk
+    print("NLTK is present. Proceeding.")
+except ImportError:
+    print("NLTK not found. Attempting installation...")
+    ! pip install nltk
+    import nltk
+    print("NLTK successfully installed and imported.")
+
+
+# --- C8. CONDITIONAL NLTK RESOURCE DOWNLOADS (Relies on NLTK being installed C7) ---
+try:
+    # Attempt to import all required resources/components
+    from nltk.corpus import wordnet as wn
+    from nltk.stem.wordnet import WordNetLemmatizer
+    from nltk.corpus import stopwords
+    from nltk.tokenize.toktok import ToktokTokenizer  
+
+    # Test that the resource (e.g., 'stopwords') is available by using it
+    stopwords.words('english')
+    
+    # Initialize objects if the resources are present
+    lemmatizer = WordNetLemmatizer()
+    tokenizer = ToktokTokenizer()
+
+    print("All required NLTK resources are available.")
+
+except LookupError:
+    # If any resource lookup fails, download them
+    print("Missing NLTK resources found. Attempting to download them...")
+
+    nltk.download("wordnet")
+    nltk.download("stopwords")
+    nltk.download("punkt")  
+    nltk.download("punkt_tab") 
+    nltk.download("averaged_perceptron_tagger")
+    
+    # Re-import and re-initialize objects
+    from nltk.corpus import stopwords
+    from nltk.corpus import wordnet as wn
+    from nltk.stem.wordnet import WordNetLemmatizer
+    from nltk.tokenize.toktok import ToktokTokenizer
+    
+    stopwords.words('english')
+    lemmatizer = WordNetLemmatizer()
+    tokenizer = ToktokTokenizer()
+    print("All NLTK resources downloaded and initialized.")
+
 
 # --- C2. Custom Module (textual) Conditional Import and Download ---
 # NOTE: This relies on Path (B) and unidecode (C1) being available.
@@ -299,55 +348,6 @@ except ImportError:
     from sklearn.metrics.pairwise import cosine_similarity 
     print("scikit-learn successfully installed and imported.")
 
-
-# --- C7. Consolidated NLTK Installlation and Import ---
-try:
-    import nltk
-    print("NLTK is present. Proceeding.")
-except ImportError:
-    print("NLTK not found. Attempting installation...")
-    ! pip install nltk
-    import nltk
-    print("NLTK successfully installed and imported.")
-
-
-# --- C8. CONDITIONAL NLTK RESOURCE DOWNLOADS (Relies on NLTK being installed C7) ---
-try:
-    # Attempt to import all required resources/components
-    from nltk.corpus import wordnet as wn
-    from nltk.stem.wordnet import WordNetLemmatizer
-    from nltk.corpus import stopwords
-    from nltk.tokenize.toktok import ToktokTokenizer  
-
-    # Test that the resource (e.g., 'stopwords') is available by using it
-    stopwords.words('english')
-    
-    # Initialize objects if the resources are present
-    lemmatizer = WordNetLemmatizer()
-    tokenizer = ToktokTokenizer()
-
-    print("All required NLTK resources are available.")
-
-except LookupError:
-    # If any resource lookup fails, download them
-    print("Missing NLTK resources found. Attempting to download them...")
-
-    nltk.download("wordnet")
-    nltk.download("stopwords")
-    nltk.download("punkt")  
-    nltk.download("punkt_tab") # Add this line 
-    nltk.download("averaged_perceptron_tagger")
-    
-    # Re-import and re-initialize objects
-    from nltk.corpus import stopwords
-    from nltk.corpus import wordnet as wn
-    from nltk.stem.wordnet import WordNetLemmatizer
-    from nltk.tokenize.toktok import ToktokTokenizer
-    
-    stopwords.words('english')
-    lemmatizer = WordNetLemmatizer()
-    tokenizer = ToktokTokenizer()
-    print("All NLTK resources downloaded and initialized.")
 
 
 # ====================================================================
