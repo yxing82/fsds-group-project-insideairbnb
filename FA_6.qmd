@@ -1,14 +1,16 @@
 ---
 title: We Love Python's Group Project
 subtitle: Data Analysis and Policy Briefing on Airbnb and Professional Landlords in London
-format: 
-  pdf: 
+format:
+  pdf:
     documentclass: article
-    titlepage: false
+    title-page: false
     include-in-header:
       text: |
         \usepackage{ragged2e}
-        \AtBeginDocument{\justify} 
+        \usepackage{xurl}
+        \AtBeginDocument{\justify}
+        \let\maketitle\relax
 
 execute:
   kernel: python3
@@ -23,8 +25,6 @@ author:
     role: Co-author
 csl: https://www.zotero.org/styles/harvard-cite-them-right
 
-header-includes:
-  - \usepackage{xurl}
 
 references:
   - id: Shabrin2021Air
