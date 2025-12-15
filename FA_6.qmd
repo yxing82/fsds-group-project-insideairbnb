@@ -165,6 +165,8 @@ references:
 
 In the middle of an election campaign, a media story linking a mayoral advisor to multiple Airbnb properties has intensified public concern about the role of short-term rentals in London’s housing crisis. In response, the opposition has proposed mandatory registration and higher Council Tax for professional landlords, arguing that Airbnb is “out of control.” As requested by the Mayor, this report assesses the scale of professional landlords and properties on Airbnb in London. On that basis, this report further evaluates the likely impacts of the opposition’s proposal for residents, landlords, and the city, using data, assumptions, and clear reasoning to inform strategic decisions.
 
+Full code and data can be found at the attached (<https://github.com/yxing82/fsds-group-project-insideairbnb>)
+
 ```{python}
 #| echo: false
 #| output: false
@@ -324,11 +326,12 @@ try:
 except LookupError:
     # If any resource lookup fails, download them
     print("Missing NLTK resources found. Attempting to download them...")
-    
+
     nltk.download("wordnet")
     nltk.download("stopwords")
-    nltk.download("punkt")          
-    nltk.download("averaged_perceptron_tagger") 
+    nltk.download("punkt")  
+    nltk.download("punkt_tab") # Add this line 
+    nltk.download("averaged_perceptron_tagger")
     
     # Re-import and re-initialize objects
     from nltk.corpus import stopwords
@@ -1019,10 +1022,20 @@ boros_dwell_vac['rate_pct'] = (boros_dwell_vac['Airbnb_Count'] / boros_dwell_vac
 # ==========================================
 # 4. CLASSIFY & PLOT (Figure 4)
 # ==========================================
-# Define Thresholds
+
+# --- 1. AGGRESSIVE CLEANING (Fixes Plot ValueError) ---
+boros_dwell_vac = boros_dwell_vac[boros_dwell_vac.geometry.is_valid].copy()
+boros_dwell_vac = boros_dwell_vac[~boros_dwell_vac.geometry.isna()].copy()
+boros_dwell_vac = boros_dwell_vac.reset_index(drop=True)
+
+
+# --- 2. DEFINE THRESHOLDS (Fixes NameError) ---
+# MUST be defined after cleaning
 airbnb_mean = boros_dwell_vac['rate_pct'].mean()
 vacant_mean = boros_dwell_vac['vacant_rate_perc'].mean()
 
+
+# --- 3. CLASSIFICATION FUNCTION ---
 def classify(row):
     if row['rate_pct'] >= airbnb_mean and row['vacant_rate_perc'] >= vacant_mean:
         return 'HH' # High Airbnb, High Vacancy
@@ -1033,6 +1046,7 @@ def classify(row):
     else:
         return 'LH' # Low Airbnb, High Vacancy
 
+# 4. Apply the classification
 boros_dwell_vac['combo_class'] = boros_dwell_vac.apply(classify, axis=1)
 
 # Colors
@@ -1047,6 +1061,9 @@ boros_dwell_vac['color'] = boros_dwell_vac['combo_class'].map(color_dict)
 # Plot
 fig, ax = plt.subplots(1, 1, figsize=(15, 12))
 boros_dwell_vac.plot(color=boros_dwell_vac['color'], edgecolor='black', linewidth=0.8, ax=ax)
+
+# --- MANUAL ASPECT RATIO SETTING (Bypasses error-prone calculation) ---
+ax.set_aspect('equal')
 
 # Annotate
 for idx, row in boros_dwell_vac.iterrows():
