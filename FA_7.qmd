@@ -11,9 +11,8 @@ format:
         \usepackage{xurl}
         \usepackage{etoolbox}
         \AtBeginDocument{\justify}
-        \makeatletter
-        \def\@enddocument{\clearpage\null\vfill\thispagestyle{empty}\newpage\end{document}} 
-        \makeatother
+        
+        \patchcmd{\maketitle}{\newpage}{}{}{}
         
         \setcounter{page}{1}
 
@@ -237,9 +236,11 @@ try:
     from nltk.stem.wordnet import WordNetLemmatizer
     from nltk.corpus import stopwords
     from nltk.tokenize.toktok import ToktokTokenizer  
-
+    from nltk.tag import PerceptronTagger # Include this import
+    
     # Test that the resource (e.g., 'stopwords') is available by using it
     stopwords.words('english')
+    PerceptronTagger() # Test that the tagger is available
     
     # Initialize objects if the resources are present
     lemmatizer = WordNetLemmatizer()
@@ -251,13 +252,23 @@ except LookupError:
     # If any resource lookup fails, download them
     print("Missing NLTK resources found. Attempting to download them...")
 
+    # We assume NLTK is installed from C7
     nltk.download("wordnet")
     nltk.download("stopwords")
     nltk.download("punkt")  
     nltk.download("punkt_tab") 
     nltk.download("averaged_perceptron_tagger")
     
+    # --- Force load the tagger immediately after downloading ---
+    try:
+        from nltk.tag import PerceptronTagger
+        PerceptronTagger() # Force the loading to complete and cache the path
+        print("Averaged Perceptron Tagger successfully loaded.")
+    except Exception as e:
+        print(f"Warning: Could not force load PerceptronTagger: {e}")
+    
     # Re-import and re-initialize objects
+    # Note: These re-imports are necessary to register the freshly downloaded resources
     from nltk.corpus import stopwords
     from nltk.corpus import wordnet as wn
     from nltk.stem.wordnet import WordNetLemmatizer
@@ -1654,6 +1665,8 @@ From a social mobility perspective, shared housing and buy-to-let properties pro
 
 In terms of housing opportunity, the proposal draws a clear line between genuine sharing and commercial activity. Clearer regulation helps ensure commercial STR develops in a controlled and sustainable way, and higher taxation of commercial operators can generate additional council revenue, which can be reinvested directly into addressing housing pressures.
 
-\newpage
+
+
+\clearpage
 
 ## References
