@@ -1,0 +1,1517 @@
+---
+title: InsideAirbnb - London
+execute:
+  kernel: python3
+author:
+  - name: Olivia Xing
+    role: Co-author
+  - name: Jianling Zhao
+    role: Co-author
+  - name: Zihan Luo
+    role: Co-author
+  - name: Qian Guo
+    role: Co-author
+csl: https://www.zotero.org/styles/harvard-cite-them-right
+
+header-includes:
+  - \usepackage{xurl}
+
+references:
+  - id: Shabrin2021Air
+    type: article-journal
+    title: Air pollution and sustainable materials
+    container-title: Journal of Environmental Design
+    volume: "15"
+    issue: "2"
+    page: "45–60"
+    issued:
+      year: 2021
+    author:
+      - family: Shabrin
+        given: Md
+      - family: Islam
+        given: Rahat
+      - family: Hasan
+        given: Mahmud
+
+  - id: ONS2025
+    type: report
+    title: Short-term lets through online collaborative economy platforms, UK
+    issued:
+      year: 2025
+    author:
+      - literal: Housing Analysis Team
+    publisher: Office for National Statistics
+    URL: https://www.ons.gov.uk/peoplepopulationandcommunity/housing/bulletins/shorttermletsthroughonlinecollaborativeeconomyplatformsuk/januarytodecember2024
+
+  - id: LHS2024
+    type: report
+    title: London’s housing stock
+    issued:
+      year: 2024
+    author:
+      - literal: London’s Housing Stock Research Unit
+    publisher: Greater London Authority
+    URL: https://www.london.gov.uk/sites/default/files/2024-11/London%27s%20Housing%20Stock%20-%20Research%20Unit%20-%20November%202024.pdf
+
+  - id: LGP2025
+    type: webpage
+    title: London’s growth plan
+    issued:
+      year: 2025
+    author:
+      - literal: London Growth Plan
+    URL: https://growthplan.london/
+
+  - id: shabr2017
+    type: report
+    author:
+      - family: Shabrina
+        given: Z.
+      - family: Zhang
+        given: Y.
+      - family: Arcaute
+        given: E.
+      - family: Batty
+        given: M.
+    title: "Beyond informality: The rise of peer-to-peer (P2P) renting"
+    issued:
+      year: 2017
+      month: 3
+    publisher: Centre for Advanced Spatial Analysis, University College London
+    collection-title: Working Papers Series
+    number: 209
+    issn: 1467-1298
+    url: https://www.ucl.ac.uk/bartlett/publications/2017/mar/casa-working-paper-209
+
+
+  - id: ferreri2018
+    type: article-journal
+    author:
+      - family: Ferreri
+        given: M.
+      - family: Sanyal
+        given: R.
+    title: Platform economies and urban planning Airbnb and regulated deregulation in London
+    container-title: Urban Studies
+    volume: 55
+    issue: 15
+    page: 3353-3368
+    issued:
+      year: 2018
+
+  - id: scottish-government-2025
+    author:
+      - family: Scottish Government
+    issued:
+      - year: 2025
+    title: Short term lets licensing statistics Scotland to 30 June 2025
+    type: report
+    publisher: Scottish Government
+    url: https://www.gov.scot/publications/short-term-lets-licensing-statistics-scotland-to-30-june-2025/
+    accessed: online
+
+  - id: propertymark-2024
+    author:
+      - family: Propertymark
+    year: 2024
+    title: STL licensing report suggests scheme is raising standards despite concerns
+    type: report
+    publisher: Propertymark
+    url: https://www.propertymark.co.uk/resource/stl-licensing-report-suggests-scheme-is-raising-standards-despite-concerns.html
+    accessed: online
+
+  - id: lord-tewdwr-jones-2014
+    type: article-journal
+    author:
+      - family: Lord
+        given: Andrew
+      - family: Tewdwr-Jones
+        given: Mark
+    issued:
+      year: 2014
+    title: Is Planning “Under Attack”? Chronicling the Deregulation of Urban and Environmental Planning in England
+    container-title: European Planning Studies
+    volume: "22"
+    issue: "2"
+    page: "345–361"
+
+  - id: botogarcia2024
+    type: article-journal
+    author:
+      - family: Boto-García
+        given: David
+        orcid: 0000-0001-8065-0983
+    title: Illegal Airbnb properties and hosts’ professionalism
+    container-title: Tourism Economics
+    volume: 31
+    issue: 4
+    issued:
+      year: 2024
+
+---
+
+## Introduction
+
+In the middle of an election campaign, a media story linking a mayoral advisor to multiple Airbnb properties has intensified public concern about the role of short-term rentals in London’s housing crisis. In response, the opposition has proposed mandatory registration and higher Council Tax for professional landlords, arguing that Airbnb is “out of control.” As requested by the Mayor, this report assesses the scale of professional landlords and properties on Airbnb in London. On that basis, this report further evaluates the likely impacts of the opposition’s proposal for residents, landlords, and the city, using data, assumptions, and clear reasoning to inform strategic decisions.
+
+```{python}
+#| echo: false
+#| output: false
+
+## 1. EDA
+### 1.0. Caching Remote Data
+# Import libraries needed for this analysis
+%pip install geopandas
+from pathlib import Path
+from requests import get
+from functools import wraps
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+import matplotlib.patheffects as pe
+import matplotlib.patches as mpatches
+
+import matplotlib
+import matplotlib.font_manager
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+def check_cache(f):
+    @wraps(f)
+    def wrapper(src:str, dst:str, min_size=100) -> Path:
+        url = Path(src) 
+        fn  = url.name  
+        dsn = Path(f"{dst}/{fn}") 
+        if dsn.is_file() and dsn.stat().st_size > min_size:
+            print(f"+ {dsn} found locally!")
+            return(dsn)
+        else:
+            print(f"+ {dsn} not found, downloading!")
+            return(f(src, dsn))
+    return wrapper
+
+@check_cache
+def cache_data(src:Path, dst:Path) -> str:
+    """Downloads a remote file.
+    
+    
+        
+    Returns
+    -------
+    str
+        A string representing the local location of the file.
+    """
+      
+    # Create...
+    if not dst.parent.exists():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        
+    # Download and write the file
+    with dst.open(mode='wb') as file:
+        response = get(src)
+        file.write(response.content)
+        
+    print(' + Done downloading...')
+
+    return dst.resolve()
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+
+### 1.1. Data Loading
+#### 1.1.0 Read Data
+# In this section, we read data remotely with the caching function above.
+
+# Set download URL
+ymd  = '20250615'
+city = 'London'
+host = 'https://orca.casa.ucl.ac.uk'
+url  = f'{host}/~jreades/data/{ymd}-{city}-listings.csv.gz'
+
+# Read csv data
+df = pd.read_csv(url, compression='gzip', low_memory=False)
+print(f"Data frame is {df.shape[0]:,} x {df.shape[1]}")
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+
+#### 1.1.1 Save Raw Data
+# Then, we want to save the raw Data in case we need them again in the later exploring.
+
+# Create a diractory for raw data
+path = Path(f'data/raw/{Path(url).name}') 
+print(f"Writing to: {path}")
+
+# Save raw data locally
+if not path.parent.exists(): 
+    print(f"Creating {path.parent}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+if not path.exists():  
+    df.to_csv(path, index=False)
+    print("Done.")
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+
+### 1.2 EDA - Data Processing
+
+#### 1.2.0. Info
+
+# We run the chunk below to have a general sense of what are in the raw data, such as data type and columns.
+
+#| scrolled: true
+
+# Get the information of the whole data set
+df.info(verbose=True)
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+#| scrolled: true
+df.describe()
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+
+# After exploring the meaninig of each column, we selected few columns of interest `cols_selected` for this analysis, by copying the output of (`df.columns.to_list()`) and removed the fields that we thought we weren’t interested in.
+
+# From here, we will use the data set `df` with selected 30 columns.
+
+df.columns.to_list()
+cols_selected = ['id', 'listing_url', 'source', 'description', 'host_id', 'host_name', 'host_is_superhost',
+                'host_listings_count', 'calculated_host_listings_count', 
+                 'room_type', 'property_type','accommodates', 'bedrooms', 
+                 'beds', 'price', 'minimum_nights','maximum_nights',
+                'estimated_occupancy_l365d', 'number_of_reviews', 'number_of_reviews_ltm', 'reviews_per_month',
+                'review_scores_rating', 'latitude', 'longitude', 'neighbourhood_cleansed', 
+                'host_total_listings_count', 'bathrooms', 'bathrooms_text', 
+                'first_review', 'last_review']
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+# Get a new df with selected cols
+df = df[cols_selected]
+print(f"The new data frame is {df.shape[0]:,} x {df.shape[1]}")
+```
+
+
+
+```{python}
+#| echo: false
+#| output: false
+
+#### 1.2.2. Dealing with NaNs and Nulls
+
+# Combined with results from `df.info()` and `df.describe()`, we see that a number of data types that aren’t ‘appropriate’ for their contents: the id columns are floats; the dates aren’t dates; there’s a boolean that’s not a boolean… It would be nice to fix these!
+
+# We started from exploring rows with NaN values. We checked columns `id` and `host_id`, which are important for us to log information for each host, and we removed any potential rows with missing values in these columns.
+
+# For the remaining data, we checked both by rows and columns. After counting NaNs or Nulls separately, the results showed that it is sensible to retain all columns we selected.
+
+# Drop NaN
+print(f"Data frame contains {df.shape[0]:,} rows.")
+df.drop(df[df.host_id.isna()].index.array, axis=0, inplace=True)
+print(f"Data frame contains {df.shape[0]:,} rows.")
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+# counts nulls by column 
+df.isnull().sum(axis=0) 
+# Sort results in descending order
+df.isnull().sum(axis=0).sort_values(ascending=False) 
+
+# counting nulls by row
+df.isnull().sum(axis=1).sort_values(ascending=False).head(10)
+```
+
+
+
+```{python}
+#| echo: false
+#| output: false
+
+#### 1.2.3. Fix Data Types
+
+# In this section, we are correcting data types that did not match the interpretation.
+
+# In the last part of this section, we created a new column `bathrooms_new` from column `bathrooms_text`, because even the majority of data from `bathrooms` mathes with the data in `bathrooms_text`, there are still many missing values. Therefore, we created a new column and checked the accuracy comparing two columns. 
+
+# Boolean
+bools = ['host_is_superhost']
+for b in bools:
+    print(f"Converting {b}")
+    df[b] = df[b].replace({'f':False, 't':True}).astype('bool')
+
+# Date
+dates = ['first_review','last_review']
+print(f"Currently {dates[1]} is of type '{df[dates[1]].dtype}'", "\n")
+for d in dates:
+    print("Converting " + d)
+    df[d] = pd.to_datetime(df[d])
+
+print(f"Now {dates[1]} is of type '{df[dates[1]].dtype}'", "\n")
+
+# categories
+cats = ['property_type','room_type']
+print(f"Currently {cats[1]} is of type '{df[cats[1]].dtype}'", "\n")
+for c in cats:
+    print(f"Converting {c}")
+    df[c] = df[c].astype('category')
+print(f"Currently {cats[1]} is of type '{df[cats[1]].dtype}'", "\n")
+
+# strings
+money = ['price']
+for m in money:
+    print(f"Converting {m}")
+    df[m] = df[m].str.replace('$','', regex=False).str.replace(',','', regex=False).astype('float')
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+# string
+df["bathrooms_text"].unique()
+df["bathrooms_text"] = df["bathrooms_text"].replace({
+    "Shared half-bath": "0.5 shared baths",
+    "Half-bath": "0.5 baths",
+    "Private half-bath": "0.5 baths"
+})
+df["bathrooms_text"] = df["bathrooms_text"].astype(str)
+df["bathrooms_text"] = (
+    df["bathrooms_text"]
+        .str.split(" ", n=1).str[0]
+        .astype(float)
+)
+print("bathrooms null:", df["bathrooms"].isnull().sum())
+print("bathrooms_text null:", df["bathrooms_text"].isnull().sum())
+
+df = df.drop(columns=['bathrooms'])
+df.rename(columns={'bathrooms_text': 'bathrooms_new'}, inplace=True)
+
+# col types
+ints = ['id', 'host_id',
+        'host_listings_count', 
+        'accommodates', 'bedrooms', 'beds', 'minimum_nights','maximum_nights',
+        'estimated_occupancy_l365d', 'number_of_reviews_ltm', 'reviews_per_month',
+        'host_total_listings_count', 'bathrooms_new', 'calculated_host_listings_count']
+
+print(df[ints].dtypes)
+```
+
+
+
+```{python}
+#| echo: false
+#| output: false
+
+### 1.3 Saving Clean Data
+
+csv_out = Path(f'data/clean/{path.name}')
+pq_out = Path(f'data/clean/{path.name.replace(".csv.gz", ".parquet")}')
+
+if not csv_out.parent.exists():
+    print(f"Creating {csv_out.parent}")
+    csv_out.parent.mkdir(parents=True, exist_ok=True)
+    
+df.to_csv(csv_out, index=False)
+# df.to_parquet(pq_out, index=False)
+print(f"Saved {df.shape[0]:,} rows of {df.shape[1]:,} columns to {csv_out.resolve()}")
+print("Done.")
+
+```
+
+## 1. Is Airbnb out of control in London?
+
+We will explore if Airbnb in London is out of control from three aspects:
+
+### 1.1 How do Airbnb listings distribute in London?
+
+We start the analysis by investigating the situation of Airbnb density in London with a map of the distribution of each type of room.
+
+```{python}
+#| echo: false
+#| output: false
+
+# Write data into Geo-data and
+# set the crs into '4326'
+gdf = gpd.GeoDataFrame(df,
+      geometry=gpd.points_from_xy(df.longitude, df.latitude, crs='epsg:4326'))
+
+# read extra data for mapping
+ddir  = Path('data/geo') # destination directory
+spath = 'https://github.com/jreades/fsds/blob/master/data/src/' # source path
+boros = gpd.read_file( cache_data(spath + 'Boroughs.gpkg?raw=true', ddir) )
+water = gpd.read_file( cache_data(spath + 'Water.gpkg?raw=true', ddir) )
+green = gpd.read_file( cache_data(spath + 'Greenspace.gpkg?raw=true', ddir) )
+
+print('Done.')
+
+# match crs for essential data sets as the boros crs
+target_crs = boros.crs
+gdf = gdf.to_crs(target_crs)
+water = water.to_crs(target_crs)
+greenspace = green.to_crs(target_crs)
+```
+
+```{python}
+#| echo: false
+#| fig-cap: ""
+
+# Distribution map
+# Create the Groups
+def assign_group(room_type):
+    if room_type in ['Entire home/apt', 'Hotel room']:
+        return 'Entire Home & Hotel'
+    else:
+        return 'Private & Shared Room'
+
+gdf['room_group'] = gdf['room_type'].apply(assign_group)
+
+# ==========================================
+highlight_color = '#e41a1c'  # Bright Red
+secondary_color = '#4575b4'  # Muted Slate Blue (Visible but receding)
+
+# Create the Highlight Map
+fig, ax = plt.subplots(figsize=(15, 12))
+water = gpd.clip(water, boros)
+
+# --- Plot Background ---
+# Made boroughs slightly darker to help the blue pop a bit more
+boros.plot(ax=ax, color='#eeeeee', edgecolor='#999999', linewidth=0.5)
+green.plot(ax=ax, color='#b2d8b2', alpha=0.4, zorder=1) 
+water.plot(ax=ax, color='#a6cee3', zorder=2)
+
+# --- Plot the Groups Manually ---
+
+# GROUP B: The "Secondary" group (Private/Shared)
+# Plot FIRST (bottom layer), increased alpha slightly for visibility
+non_entire = gdf[gdf['room_group'] == 'Private & Shared Room'].copy()
+non_entire.plot(
+    ax=ax,
+    color=secondary_color, 
+    markersize=2,
+    alpha=0.5,           # Increased from 0.3 to 0.5 for better visibility
+    zorder=3
+)
+
+# GROUP A: The "Highlight" group (Entire Homes)
+# Plot SECOND (top layer), high alpha
+entire = gdf[gdf['room_group'] == 'Entire Home & Hotel'].copy()
+entire.plot(
+    ax=ax,
+    color=highlight_color,    
+    markersize=2,       
+    alpha=0.7,          
+    zorder=4
+)
+# Custom Legend and Titles
+ax.set_title('Distribution of Airbnb Room Types in London', fontsize=18, fontweight='bold')
+ax.set_axis_off()
+# Update legend colors to match variables
+red_dot = mlines.Line2D([], [], color='white', marker='o', markerfacecolor=highlight_color, markersize=10, label='Entire Home & Hotel')
+blue_dot = mlines.Line2D([], [], color='white', marker='o', markerfacecolor=secondary_color, markersize=10, label='Private & Shared Room')
+plt.legend(handles=[red_dot, blue_dot], loc='upper left', frameon=True, fontsize=12)
+# Add the caption
+fig.text(
+    0.5, 0.02, 
+    "Figure 1: Spatial distribution of Airbnb listings in London. Red points indicate 'Entire Homes and Hotels',\nshowing high density in the city center compared to 'Private and Shared Rooms' (Blue).", 
+    ha='center',       # Horizontal alignment: center
+    fontsize=12,       # Size of the text
+    color='black',     # Color
+    style='italic',    # Style (optional)
+    wrap=True          # wrap text if it's too long
+)
+# Adjust the margin
+plt.subplots_adjust(bottom=0.15)
+plt.show()
+```
+
+Figure 1 shows a significant disparity in listings between "Entire Homes/Apt and Hotel Rooms" and "Private and Shared rooms" in London. This trend is particularly pronounced in central London where the dense clustering of red dots suggests that Airbnb is a short-term commercial rental market rather than a platform for sharing spare bedrooms under the "sharing economy". This is contrary to the objectives of the Deregulation Act 2015 which aims to support residents rather than provide opportunities for the commercial sector.
+
+```{python}
+#| echo: false
+#| output: false
+
+# Density Map
+# 1. Load Data
+ddir_2 = Path('data/airbnb')
+spath_2 = 'https://raw.githubusercontent.com/JianlingZhao/fsds_Airbnb_dwelling_data/main/'
+dwl  = pd.read_csv( cache_data(spath_2 + 'RM204-2021-1-filtered-2025-12-02T17-06-33Z.csv', ddir_2) )
+print(('Done.'))
+```
+
+```{python}
+#| echo: false
+#| fig-cap: ""
+
+dwl = dwl.rename(columns={'Lower tier local authorities': 'NAME', 'Observation': 'total_dwellings'})
+# Spatial Join & Counts
+joined = gpd.sjoin(gdf, boros, how="inner", predicate="within")
+airbnb_counts = joined.groupby('NAME').size().reset_index(name='airbnb_count')
+
+# 2. Merge for Density Calculation
+borough_stats = boros.merge(airbnb_counts, on='NAME', how='left')
+borough_stats = borough_stats.merge(dwl[['NAME', 'total_dwellings']], on='NAME', how='left')
+
+# Calculate Density
+borough_stats['density_pct'] = (borough_stats['airbnb_count'] / borough_stats['total_dwellings']) * 100
+borough_stats['density_pct'] = borough_stats['density_pct'].fillna(0)
+
+# 3. Create the Improved Map
+fig, ax = plt.subplots(figsize=(14, 12))
+
+# Plot Density
+borough_stats.plot(
+    column='density_pct',
+    cmap='YlOrRd',      
+    linewidth=0.8,
+    edgecolor='0.6',    # Slightly darker edge for boroughs
+    legend=True,
+    legend_kwds={
+        'label': "Airbnb Listings as % of Housing Stock",
+        'orientation': "horizontal",
+        'shrink': 0.6,
+        'pad': 0.05
+    },
+    ax=ax
+)
+
+# 4. Add Readable Labels with "Halo" Effect
+# We sort by density to ensure we label the most important ones if space is tight
+for idx, row in borough_stats.iterrows():
+    # Only label interesting areas (e.g., > 1% density) to keep map clean
+    if row['density_pct'] > 1: 
+        centroid = row.geometry.centroid
+        label_text = f"{row['NAME']}\n{row['density_pct']:.1f}%"
+        
+        txt = ax.text(
+            centroid.x, centroid.y, 
+            label_text, 
+            fontsize=7, 
+            ha='center', 
+            va='center',
+            color='black',      
+            weight='bold',
+            zorder=10            
+        )
+
+        txt.set_path_effects([
+            pe.withStroke(linewidth=3, foreground='white')
+        ])
+
+ax.set_title('Airbnb Intensity: Listings vs. Residential Stock', fontsize=16, weight='bold')
+ax.set_axis_off()
+
+caption_text = (
+    "Figure 2: Spatial distribution of Airbnb density across London boroughs. "
+    "Percentages represent the ratio of active Airbnb listings to the total residential housing stock "
+    "(based on 2021 Census data). Central boroughs show significantly higher commercialization pressures."
+)
+
+fig.text(
+    0.5, 0.08,             
+    caption_text, 
+    ha='center', 
+    fontsize=12, 
+    color='#333333',       # Dark grey for professional look
+    style='italic',
+    wrap=True              # Ensures text doesn't run off page
+)
+
+# Adjust bottom margin to make space for the text
+plt.subplots_adjust(bottom=0.15)
+plt.show()
+```
+
+When viewed alongside Figure 1, Figure 2 further demonstrates a highly concentrated commercialisation of housing in Central London. The outer boroughs exhibit densities of approximately 1% (lighter yellow/orange) which aligns with the concept of the "sharing economy". However, there is a sudden spike to dark red in the centre, particularly in Westminster. This indicates a decoupling of central boroughs from the residential housing market.
+ 
+This distinct "heat effect" visually conveys that short-term rental platforms such as Airbnb are likely displacing long-term tenants and exacerbating the housing crisis in the city’s most desirable areas. We will explore this displacement trend in detail below.
+
+
+### 1.2 Airbnb’s negative effects on the long-term rental market in London
+
+```{python}
+#| echo: false
+#| output: false
+
+# Vacancy Rate
+# --- 1. Load Data ---
+ddir_2 = Path('data/airbnb')
+spath_2 = 'https://raw.githubusercontent.com/JianlingZhao/fsds_Airbnb_dwelling_data/main/'
+vacant = pd.read_csv( cache_data(spath_2 + 'vacant_local.csv', ddir_2) )
+print('Done.')
+```
+
+```{python}
+#| echo: false
+#| fig-cap: ""
+
+# Clean Headers
+dwl.columns = dwl.columns.str.strip()
+vacant.columns = (
+    vacant.columns.str.strip().str.lower()
+    .str.replace(" ", "_").str.replace(r"[^a-z0-9_]", "", regex=True)
+)
+
+# Process Vacancy Data (Oct 2024)
+target_col = '07102024'
+if target_col in vacant.columns:
+    vacant_24 = vacant[['ons_code', target_col]].copy()
+else:
+    vacant_24 = vacant.iloc[:, [0, -1]].copy()
+vacant_24.columns = ['ons_code', 'vacant']
+
+# Fix numbers (remove commas, handle '[x]')
+vacant_24['vacant'] = pd.to_numeric(
+    vacant_24['vacant'].astype(str).str.replace(',', ''), 
+    errors='coerce'
+).fillna(0).astype(int)
+
+# Merge Vacancy + Dwelling
+dwelling_stat = pd.merge(
+    dwl, vacant_24, how='inner', 
+    left_on=dwl.columns[0], right_on='ons_code'
+)
+
+# Rename Columns
+dwelling_stat = dwelling_stat.rename(columns={
+    dwl.columns[1]: 'Borough',
+    dwl.columns[2]: 'Total_Dwellings'
+})
+
+# Calculate Vacancy Rate
+dwelling_stat['vacant_rate_perc'] = (dwelling_stat['vacant'] / dwelling_stat['Total_Dwellings']) * 100
+
+
+# Filter for Entire Homes
+entire_home_df = df[df['room_type'] == 'Entire home/apt'].copy()
+# Count listings per borough
+airbnb_counts = entire_home_df['neighbourhood_cleansed'].value_counts().reset_index()
+airbnb_counts.columns = ['NAME', 'count']
+
+# We need GSS Codes to merge. 
+boros_dwl_rate = airbnb_counts.merge(
+    dwelling_stat[['Borough', 'Total_Dwellings', 'Lower tier local authorities Code']],
+    left_on='NAME',
+    right_on='Borough'
+)
+# Calculate Airbnb Rate
+boros_dwl_rate['rate_pct'] = (boros_dwl_rate['count'] / boros_dwl_rate['Total_Dwellings']) * 100
+boros_dwl_rate['GSS_CODE'] = boros_dwl_rate['Lower tier local authorities Code']
+
+# --- 2. MERGE WITH AIRBNB DATA ---
+# boros_dwl_rate should have columns: ['GSS_CODE', 'NAME', 'rate_pct']
+
+# Merge vacancy rates into the Airbnb dataframe
+cols_to_merge = ['Lower tier local authorities Code', 'vacant_rate_perc']
+
+# Use inner join to ensure we only plot boroughs that exist in both datasets
+boros_dwell_vac = boros_dwl_rate.merge(
+    dwelling_stat[cols_to_merge],
+    left_on='GSS_CODE',
+    right_on='Lower tier local authorities Code',
+    how='inner' 
+)
+
+# --- 3. GENERATE THE PLOT ---
+# Sort by Vacancy Rate (Red bars) so the pattern is clear
+df_sorted = boros_dwell_vac.sort_values('vacant_rate_perc', ascending=True)
+
+# Set up positions for the bars
+x = np.arange(len(df_sorted))  # The label locations
+width = 0.35  # The width of the bars
+
+fig, ax = plt.subplots(figsize=(15, 8))
+
+# Plot Airbnb Bars (Blue)
+rects1 = ax.bar(x - width/2, df_sorted['rate_pct'], width, label='Airbnb Listings (%)', color='#6FA3FF')
+
+# Plot Vacancy Bars (Red)
+rects2 = ax.bar(x + width/2, df_sorted['vacant_rate_perc'], width, label='Vacant Homes (%)', color='#FF6F61')
+
+# Add Labels, Title, and Custom x-axis tick labels
+ax.set_ylabel('Percentage of Housing Stock')
+ax.set_title('Comparison: Airbnb Density vs. Vacancy Rate by Borough')
+ax.set_xticks(x)
+ax.set_xticklabels(df_sorted['NAME'], rotation=90)
+ax.legend()
+
+# Add a grid for easier reading
+ax.grid(axis='y', linestyle='--', alpha=0.3)
+
+caption_text = (
+    "Figure 3: Comparison of Airbnb density (active entire-home listings) versus long-term vacancy rates across London boroughs. "
+    "Red bars indicate the percentage of housing stock that is vacant, while blue bars represent Airbnb listings. "
+    "Boroughs where blue bars exceed red bars exhibit higher displacement pressure from short-term rentals."
+)
+
+plt.subplots_adjust(bottom=0.35)
+
+plt.figtext(0.5, 0.02, caption_text, wrap=True, horizontalalignment='center', fontsize=11, style='italic')
+
+plt.show()
+
+# --- 4. PRINT THE "OUT OF CONTROL" RATIO ---
+boros_dwell_vac['Ratio'] = boros_dwell_vac['rate_pct'] / boros_dwell_vac['vacant_rate_perc']
+print("Top 5 Boroughs where Airbnb exceeds Vacancy (Ratio > 1):")
+print(boros_dwell_vac[['NAME', 'rate_pct', 'vacant_rate_perc', 'Ratio']].sort_values('Ratio', ascending=False).head())
+```
+
+Figure 3 further demonstrates that the situation of Airbnb in central London is not optimistic and reinforces our view that the platform is out of control in the city. In areas like **Westminster** and **Kensington & Chelsea**, the number of active short-term rental properties (blue bars) has far exceeded the number of long-term vacant homes, while outer suburbs like **Croydon** and **Bexley** follow the traditional pattern—long-term vacant homes (red bars) remain the primary source of unused housing.
+
+This "crossover" effect refutes the notion that short-term rentals merely utilise surplus housing. Instead, it suggests that in the city’s most vibrant areas the tourism market consumes housing resources at a rate far exceeding the natural vacancy rate. When Airbnb listings are twice or more of the number of vacant homes the platform ceases to be a passive participant in the housing market and becomes a primary driver of scarcity effectively removing far more homes from the long-term rental market than are actually vacant.
+
+```{python}
+#| echo: false
+#| output: false
+
+# Vacancy Map
+# 1. PREPARE AIRBNB DATA (From gdf)
+# ==========================================
+# Filter for Entire Homes (Displacement impact)
+# We assume your 'gdf' is already loaded as per your message
+entire_homes = gdf[gdf['room_type'] == 'Entire home/apt'].copy()
+# Count listings per borough
+airbnb_counts = entire_homes['neighbourhood_cleansed'].value_counts().reset_index()
+
+# FORCE rename columns to ensure match 
+airbnb_counts.columns = ['Borough', 'Airbnb_Count']
+
+# print("Airbnb Count Columns:", airbnb_counts.columns.tolist())
+
+# 2. PREPARE MAP GEOMETRY
+geo_url = "https://raw.githubusercontent.com/westminsterDataStudio/open_data/main/boundary_files/boroughs_london.geojson"
+
+try:
+    boros_map = gpd.read_file(geo_url)
+    print("Borough map loaded successfully.")
+except Exception as e:
+    print(f"Error loading map: {e}. Please ensure you have internet access or a local shapefile.")
+```
+
+```{python}
+#| echo: false
+#| fig-cap: ""
+
+# Merge Airbnb counts into the Map
+# Now we are certain 'Borough' exists in airbnb_counts
+boros_dwl_rate = boros_map.merge(
+    airbnb_counts, 
+    left_on='NAME', 
+    right_on='Borough', 
+    how='left'
+)
+# Fill NaNs with 0 (for boroughs with no listings)
+boros_dwl_rate['Airbnb_Count'] = boros_dwl_rate['Airbnb_Count'].fillna(0)
+
+# ==========================================
+# 3. MERGE WITH VACANCY DATA
+# ==========================================
+# (Assuming 'dwelling_stat' exists from previous steps. 
+# If not, please re-run the vacancy loading code provided earlier)
+
+# Merge Vacancy Stats into the Map
+boros_dwell_vac = boros_dwl_rate.merge(
+    dwelling_stat[['Lower tier local authorities Code', 'Total_Dwellings', 'vacant_rate_perc']],
+    left_on='GSS_CODE', 
+    right_on='Lower tier local authorities Code',
+    how='inner'
+)
+
+# Calculate Airbnb Rate %
+boros_dwell_vac['rate_pct'] = (boros_dwell_vac['Airbnb_Count'] / boros_dwell_vac['Total_Dwellings']) * 100
+
+# ==========================================
+# 4. CLASSIFY & PLOT (Figure 4)
+# ==========================================
+# Define Thresholds
+airbnb_mean = boros_dwell_vac['rate_pct'].mean()
+vacant_mean = boros_dwell_vac['vacant_rate_perc'].mean()
+
+def classify(row):
+    if row['rate_pct'] >= airbnb_mean and row['vacant_rate_perc'] >= vacant_mean:
+        return 'HH' # High Airbnb, High Vacancy
+    elif row['rate_pct'] < airbnb_mean and row['vacant_rate_perc'] < vacant_mean:
+        return 'LL' # Low Airbnb, Low Vacancy
+    elif row['rate_pct'] >= airbnb_mean and row['vacant_rate_perc'] < vacant_mean:
+        return 'HL' # High Airbnb, Low Vacancy (Displacement Zone)
+    else:
+        return 'LH' # Low Airbnb, High Vacancy
+
+boros_dwell_vac['combo_class'] = boros_dwell_vac.apply(classify, axis=1)
+
+# Colors
+color_dict = {
+    'HH': '#FFD966',  # Yellow
+    'LL': '#6FA3FF',  # Blue
+    'HL': '#FF6F61',  # Red
+    'LH': '#6FFF9E',  # Green
+}
+boros_dwell_vac['color'] = boros_dwell_vac['combo_class'].map(color_dict)
+
+# Plot
+fig, ax = plt.subplots(1, 1, figsize=(15, 12))
+boros_dwell_vac.plot(color=boros_dwell_vac['color'], edgecolor='black', linewidth=0.8, ax=ax)
+
+# Annotate
+for idx, row in boros_dwell_vac.iterrows():
+    x, y = row['geometry'].representative_point().x, row['geometry'].representative_point().y
+    label = f"{row['NAME']}\nA:{row['rate_pct']:.1f}%/V:{row['vacant_rate_perc']:.1f}%"
+    font_weight = 'bold' if row['combo_class'] == 'HL' else 'normal'
+    ax.text(x, y, label, ha='center', va='center', fontsize=8, color='black', fontweight=font_weight)
+
+# Legend
+patches = [
+    mpatches.Patch(color=color_dict['HL'], label='High Airbnb / Low Vacancy (Displacement)'),
+    mpatches.Patch(color=color_dict['HH'], label='High Airbnb / High Vacancy'),
+    mpatches.Patch(color=color_dict['LH'], label='Low Airbnb / High Vacancy'),
+    mpatches.Patch(color=color_dict['LL'], label='Low Airbnb / Low Vacancy')
+]
+ax.legend(handles=patches, title='Bivariate Classification', loc='lower left')
+
+plt.title('Spatial Association between Commercial Short-Term Rentals\nand Long-Term Vacant Dwellings in London (2024)', fontsize=14, pad=20)
+plt.axis('off')
+
+caption_text = (
+    "Figure 4: Bivariate choropleth map classifying London boroughs based on the relationship between the density of active "
+    "entire-home Airbnb listings and long-term vacancy rates. Classifications are defined relative to the city-wide mean "
+    "for both metrics. The 'High Airbnb / Low Vacancy' category (Red) highlights boroughs where short-term rental pressure "
+    "is disproportionately high compared to available vacant stock, indicating potential displacement of residential housing."
+)
+
+# Adjust layout and place caption
+plt.subplots_adjust(bottom=0.20)
+plt.figtext(0.5, 0.05, caption_text, wrap=True, horizontalalignment='center', fontsize=11, style='italic')
+
+plt.show()
+```
+
+Figure 4 illustrates the distribution of housing pressure in London, revealing a significant disparity between the city centre and the suburbs.
+
+The map highlights a concentration of boroughs in central London such as Westminster and Kensington & Chelsea marked in red. These areas are characterised by a high number of Airbnb listings and low vacancy rates. This suggests that the housing shortage in the city centre is not caused by vacant properties but rather by residential homes being converted into tourist accommodations.
+
+In contrast, the green areas in the outer suburbs indicate a more traditional pattern: there are high long-term vacancy rates but minimal Airbnb activity. This map demonstrates that the ‘Airbnb crisis’ is not a citywide phenomenon but rather a localised issue confined to the city centre where the platform is competing with residents for scarce housing resources.
+
+### 1.3 The impacts of Airbnb on rents and housing prices in London
+
+In the context of London’s persistent housing shortage, characterised by high demand and limited long-term rental supply, studies indicate that Airbnb activity can interact with tight housing markets in ways that place additional pressure on rents. @Shabrin2021Air suggest that Airbnb activity contributes to increases in both rents and housing prices in London, with a 100% increase in the density of possible Airbnb misuse being associated with up to an 8% increase in unit rental price per bedroom per week.
+
+### Limitations
+
+Vacancy data from the rental market is not available, so the vacancy rate is calculated based on all dwellings, not just those available for rental. Some vacant homes may be owner-occupied or otherwise unavailable for renting, so the measure is an approximation, as is the Airbnb ratio. Other factors affecting housing availability or Airbnb distribution (e.g., local regulations, rental demand, property prices) are not included in this part.
+The dwelling stock data are from 2021, which could cause slight deviations. However, changes in total housing stock over time are relatively modest, so these changes are expected to have minimal impact on the findings.
+
+## 2. Scope and Scale of the Proposal
+
+### 2.1 How many professional landlords are there?
+
+#### Definition of Professional Landlords
+
+Since the opposition proposal focusses on “professional landlords” it is crucial how we define these hosts. As @botogarcia2024 defines, “professional hosts are profit-oriented players who behave similarly to business corporations while non-professional hosts primarily engage in sharing-oriented supply”. The distinction between the two is generally based on the number of accommodations offered, and the type of rooms provided.
+
+Therefore, we take a further exploration of each room type.
+
+1. **Entire Home/apt** and **Hotel Room** have high likelihood of professionalism, because these means their hosts are renting out an entire, separate unit. It is more straightforward to the host of a Hotel room. If a host has multiple “Entire home/apt” listings, they are almost certainly a professional operator, as they are not living in any of the units and are solely focused on commercial rental income.
+
+2. **Private Room** and **Shared Room** have lower likelihood. These often imply a host lives on-site and is renting out a spare bedroom, which is closer to the original, non-commercial ethos of Airbnb. While some professional operators manage multiple private rooms within a single large property, the classification itself is a much softer signal than “Entire home/apt.” We will explore this case later in this section.
+
+Since single-room landlords with “Private” and “Shared” rooms perfectly align with the concept of the “sharing economy”, they are directly excluded from the “professional landlords” category. Therefore, our criteria for a “Professional Landlord” must satisfy a listing count of at least one and a room type of either ‘Entire home/apt’ or ‘Hotel room’.
+
+```{python}
+#| echo: false
+#| output: false
+
+#### Strategy
+
+#1. Group_by `host_id`
+#2. Sum the count of listings manually
+#3. Compare the sum result with `calculated_host_listings_count` to check the accuracy
+#4. Filter by `room_type`
+#5. Use `calculated_host_listings_count` and `room_type` as criteria columns to lock professional landlords.
+
+# accuracy of column `calculated_host_listings_count`
+
+# group by `host_id`
+df['listing_count'] = df.groupby('host_id')['id'].transform('count')
+## Filter df to keep only hosts with 2 or more listings
+df_multi_host = df[df['listing_count'] > 1].copy()
+
+## Filter df to keep hosts with one listing
+df_single_host = df[df['listing_count'] == 1].copy()
+col_landlord = ['host_id', 'id', 'room_type', 'property_type', 'listing_count', 
+                'calculated_host_listings_count', 'description']
+df_multi_host = df_multi_host[col_landlord]
+df_single_host = df_single_host[col_landlord]
+
+df_multi_host['is_match'] = df_multi_host['listing_count'] == df_multi_host['calculated_host_listings_count']
+num_matches = df_multi_host['is_match'].sum()
+total_length = len(df_multi_host)
+num_mismatches = total_length - num_matches
+print(f"Number of mismatches (discrepancies) in multi-listing hosts: {num_mismatches:,}")
+df_single_host['is_match'] = df_single_host['listing_count'] == df_single_host['calculated_host_listings_count']
+num_matches = df_single_host['is_match'].sum()
+total_length = len(df_single_host)
+num_mismatches = total_length - num_matches
+print(f"Number of mismatches (discrepancies) in single-listing hosts: {num_mismatches:,}")
+
+#Then using the column `calculated_host_listings_count`, we can filter the `room_type` (and `property_type`) for further analysis. The `room_type` column directly addresses the commercial intent by defining the relationship between the host and the listing.
+
+```
+
+#### The number of professional landlords
+
+```{python}
+
+#| echo: false
+#| fig-cap: ""
+
+# Define the columns we'll be interested in throughout the analysis
+COLUMNS_OF_INTEREST = [
+    'host_id', 'id', 'room_type', 'property_type', 'calculated_host_listings_count'
+]
+
+## --- STAGE 1: CLASSIFICATION AND SEGMENTATION ---
+
+# 1. Define the Professional Landlord Criteria (Intent and Scale)
+is_entire_multi = (df['room_type'] == 'Entire home/apt') & (df['calculated_host_listings_count'] >= 1)
+is_hotel = (df['room_type'] == 'Hotel room')
+df['is_professional_listing'] = is_entire_multi | is_hotel
+
+
+# --- 1.1. Create the Final Professional Landlord DF (df_landlord) ---
+
+# Filter the main DF to keep ONLY the professional listings and select columns
+df_professional = df[df['is_professional_listing']].copy()
+df_landlord = df_professional[COLUMNS_OF_INTEREST]
+
+# --- 1.2. Create Multi/Single Host DFs for Distribution Analysis ---
+
+# Filter for Multi-Host Listings (Scale > 1)
+df_multi_host = df[df['calculated_host_listings_count'] > 1].copy()
+df_multi_host = df_multi_host[COLUMNS_OF_INTEREST]
+
+# Filter for Single-Host Listings (Scale = 1)
+df_single_host = df[df['calculated_host_listings_count'] == 1].copy()
+df_single_host = df_single_host[COLUMNS_OF_INTEREST]
+
+
+# --- STAGE 2: CALCULATION AND ANALYSIS ---
+
+total_landlords = df['host_id'].nunique()
+total_property = df.shape[0]
+
+# 3. Final Calculation for Professional Landlords
+num_professional_landlords = df_landlord['host_id'].nunique()
+num_properties = df_landlord.shape[0]
+
+if total_landlords > 0:
+    professional_percentage = (num_professional_landlords / total_landlords) * 100
+else:
+    professional_percentage = 0.0
+
+pro_property_percentage = (num_properties / total_property)*100
+
+
+#print("--- 1. Professional Landlord Analysis ---")
+#print(f"Total Unique Landlords: {total_landlords:,}")
+#print(f"Total number of Professional Landlords (Unique Host IDs): {num_professional_landlords:,}")
+#print(f"Total number of Properties managed by these landlords: {num_properties:,}")
+#print(f"Percentage of Professional Landlords: {professional_percentage:.2f}%")
+#print(f"Percentage of Professional Properties: {pro_property_percentage:.2f}%")
+
+#print("\n--- 2. Segmentation Summary ---")
+#print(f"Total Multi-Host Listings (df_multi_host): {df_multi_host.shape[0]:,}")
+#print(f"Total Single-Host Listings (df_single_host): {df_single_host.shape[0]:,}")
+
+
+# --- STAGE 3: VISUALIZATION (Distribution Comparison) ---
+
+# 4. Calculate the distribution for each group
+multi_host_distribution = df_multi_host['room_type'].value_counts(normalize=True) * 100
+single_host_distribution = df_single_host['room_type'].value_counts(normalize=True) * 100
+
+# 5. Combine the distributions for plotting
+comparison_df = pd.DataFrame({
+    'Multi-Host': multi_host_distribution,
+    'Single-Host': single_host_distribution
+}).fillna(0)
+
+# 6. Plot the side-by-side comparison
+
+comparison_df.plot(kind='bar', figsize=(10, 6))
+
+plt.title('Room Type Distribution: Multi-Host vs. Single-Host', fontsize=14)
+plt.ylabel('Percentage of Listings (%)', fontsize=12)
+plt.xlabel('Room Type', fontsize=12)
+plt.xticks(rotation=0)
+plt.legend(title='Host Type')
+caption_text = "Figure 5: Multi-host listings (blue) are significantly more likely to be entire homes compared to single-host listings (red)."
+plt.figtext(0.5, 0.01, caption_text, wrap=True, horizontalalignment='center', fontsize=11, style='italic')
+
+plt.tight_layout(rect=[0, 0.05, 1, 1]) # Reserve space for caption
+plt.savefig('room_type_comparison_figure_6.png', dpi=300)
+plt.show() 
+
+print("\n--- 3. Distribution Comparison (Percentage) ---")
+print(comparison_df)
+```
+ 
+Based on our criteria of "Professional Landlord", there are 35,953 of them, which is 64.43% of the whole number of hosts. This can also be viewed as further evidence showing Airbnb is "out of control" in London.
+
+#### Limitation:
+
+Multi-room landlords offering "Private" or "Shared" rooms were not categorised as "professional landlords" because their listings' descriptions exhibit limited overall textual similarity to the professional standards observed in “Entire home/apt” and “Hotel” listings (based on a comparison of word frequency in descriptions, showing an average similarity of approximately 35%). This is a minor limitation as shared and private rooms represent a relatively smaller proportion of all listings (approximately 33%). Therefore, excluding this segment does not significantly alter our main conclusions regarding professional landlord behaviour.
+
+```{python}
+#| echo: false
+#| fig-cap: ""
+
+# multi-listing host
+room_type_counts = df_multi_host['room_type'].value_counts()
+
+# --- SECTION 2: PLOTTING ---
+# Initialize figure (slightly taller to accommodate the bottom caption)
+plt.figure(figsize=(8, 7))
+
+# Create the bar chart
+ax = room_type_counts.sort_values(ascending=False).plot(
+    kind='bar', 
+    color=['#3778c2', '#ff5a5f', '#484848'], 
+    width=0.75
+)
+
+# --- SECTION 3: STYLING & LABELS ---
+# Title and Axis Labels
+plt.title('Distribution of Multi-listings by Room Type', fontsize=16, fontweight='bold', pad=15)
+plt.xlabel('Room Type', fontsize=12)
+plt.ylabel('Number of Listings', fontsize=12)
+
+# Fix X-axis rotation (0 is usually better for these short labels)
+plt.xticks(rotation=0, ha='center')
+
+# Clean up borders (remove top and right spines for a modern look)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+# Add data labels on top of bars
+for p in ax.patches:
+    ax.annotate(f'{int(p.get_height())}', 
+                (p.get_x() + p.get_width() / 2., p.get_height()), 
+                ha='center', va='bottom', 
+                xytext=(0, 5), 
+                textcoords='offset points',
+                fontsize=11)
+
+# --- SECTION 4: CAPTION (FIGURE 5) ---
+# Add the caption at the bottom of the figure
+caption_text = "Figure 6: Analysis of room type distribution for multi-listing hosts."
+plt.figtext(0.5, 0.02, caption_text, wrap=True, horizontalalignment='center', fontsize=10, style='italic')
+
+# Adjust layout to ensure the caption isn't cut off
+plt.tight_layout(rect=[0, 0.05, 1, 1])
+
+# Save and Show
+plt.savefig('room_type_distribution_figure_5.png', dpi=300)
+plt.show()
+
+# --- SECTION 5: PRINT STATISTICS ---
+# Calculate percentages
+room_type_percentages = df_multi_host['room_type'].value_counts(normalize=True) * 100
+
+print("--- Room Type Distribution for Multi-Listing Landlords ---")
+print("\n1. Raw Counts:")
+#print(room_type_counts)
+print(room_type_counts.to_string())
+print("\n2. Percentage Distribution:")
+#print(room_type_percentages.round(2).astype(str) + '%')
+print((room_type_percentages.round(2).astype(str) + '%').to_string())
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+### Text analysis - word frequency
+
+import pandas as pd
+import re
+import matplotlib.pyplot as plt
+
+from bs4 import BeautifulSoup
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+
+!pip install nltk
+import nltk
+
+try:
+    from nltk.corpus import wordnet as wn
+    from nltk.stem.wordnet import WordNetLemmatizer
+    from nltk.corpus import stopwords
+    stopwords.words('english')
+    lemmatizer = WordNetLemmatizer()
+    tokenizer = ToktokTokenizer()
+except:
+    nltk.download("stopwords")
+    nltk.download("punkt_tab")
+    nltk.download("averaged_perceptron_tagger_eng")
+    from nltk.corpus import stopwords
+    from nltk.corpus import wordnet as wn
+    from nltk.stem.wordnet import WordNetLemmatizer
+    stopwords.words('english')
+
+from nltk.corpus import stopwords
+stopword_list = set(stopwords.words('english'))
+
+from nltk.tokenize import word_tokenize, sent_tokenize
+from nltk.tokenize.toktok import ToktokTokenizer
+
+from nltk.stem.porter import PorterStemmer
+from nltk.stem.snowball import SnowballStemmer
+
+from nltk import ngrams, FreqDist
+
+lemmatizer = WordNetLemmatizer()
+tokenizer = ToktokTokenizer()
+```
+```{python}
+#| echo: false
+#| output: false
+
+# analysing text similarity between pro/non_pro
+# group_by
+df_group_by_type = df.groupby('room_type')
+
+cols_str_detect = ['host_id', 'room_type', 'description']
+str_detect = df_group_by_type[cols_str_detect]
+
+str_detect.head()
+
+# 定义区分筛选条件：分为valid/invalid pro
+valid_hosts = df[df['room_type'].isin(['Entire home/apt', 'Hotel room'])]['host_id'].unique()
+invalid_hosts = df[~df['host_id'].isin(valid_hosts)]['host_id'].unique()
+invalid_hosts = [h for h in invalid_hosts if (df['host_id'] == h).sum() > 1]
+
+str_entire_home = df_group_by_type.get_group('Entire home/apt')[cols_str_detect]
+str_hotel_room = df_group_by_type.get_group('Hotel room')[cols_str_detect]
+str_shared_room = df_group_by_type.get_group('Shared room')[cols_str_detect]
+str_private_room = df_group_by_type.get_group('Private room')[cols_str_detect]
+
+# filter by host_id(valid/invalid)(avoid the influence of index changing)
+str_entire_hotel = pd.concat(
+    [
+        str_entire_home[str_entire_home['host_id'].isin(valid_hosts)],
+        str_hotel_room[str_hotel_room['host_id'].isin(valid_hosts)]
+    ],
+    ignore_index=True
+)
+
+print(str_entire_hotel.head())
+
+str_shared_private = pd.concat(
+    [
+        str_shared_room[str_shared_room['host_id'].isin(invalid_hosts)],
+        str_private_room[str_private_room['host_id'].isin(invalid_hosts)]
+    ],
+    ignore_index=True
+)
+
+print(str_shared_private.head())
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+cleaned = str_entire_hotel['description'].fillna("").apply(lambda x: BeautifulSoup(x, 'html.parser').get_text(" "))
+lower = cleaned.str.lower()
+
+# clean punctuation and emoji
+pat = re.compile(r'[^a-z0-9\s]')
+subbed = lower.apply(lambda x: pat.sub('', x))
+
+nltk.download('punkt')
+nltk.download('wordnet')
+from nltk.tokenize import word_tokenize
+tokens = lower.apply(word_tokenize)
+tokens
+
+lemmatizer = WordNetLemmatizer()
+
+lemmas = tokens.apply(lambda x: [lemmatizer.lemmatize(t) for t in x])
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+stopword_list = set(stopwords.words('english'))
+print(stopword_list)
+
+tokens = tokens.apply(lambda lst: [x for x in lst if x not in stopword_list and len(x)>1])
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+%load_ext autoreload
+%autoreload 2
+try: 
+    from textual import *
+except:
+    try:
+        from unidecode import unidecode
+    except:
+        ! pip install unidecode
+    import urllib.request
+    host  = 'https://orca.casa.ucl.ac.uk'
+    turl  = f'{host}/~jreades/__textual__.py'
+    tdirs = Path('textual')
+    tpath = Path(tdirs / '__init__.py')
+
+    if not tpath.exists():
+        tdirs.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(turl, tpath)
+    from textual import *
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+str_entire_hotel['description'] = tokens.apply(normalise_document, remove_digits=True)
+
+srcdf = str_entire_hotel['description']
+
+corpus = srcdf.fillna(" ").values
+print(corpus[0:3])
+
+
+def clean_text(text):
+    cleaned = text.fillna("").apply(lambda x: BeautifulSoup(x, 'html.parser').get_text(" "))
+    lower = cleaned.str.lower()
+    pat = re.compile(r'[^a-z0-9\s]')
+    no_punct = lower.apply(lambda x: pat.sub('', x))
+    tokens = lower.apply(word_tokenize)
+    tokens = tokens.apply(lambda x: [lemmatizer.lemmatize(t) for t in x])
+    tokens = tokens.apply(lambda lst: [x for x in lst if x not in stopword_list])
+    normalised = tokens.apply(normalise_document, remove_digits=True)
+    normalised_str = normalised.apply(lambda lst: ' '.join(lst))
+    return normalised_str
+
+fcounts = dict()
+
+data = nltk.tokenize.word_tokenize(
+    ' '.join([str(text).replace('.', '') for text in corpus])
+)
+
+
+for size in 1, 2, 3:
+    fdist = FreqDist(ngrams(data, size))
+    print(fdist)
+    fcounts[size] = pd.DataFrame.from_dict({f'Ngram Size {size}': fdist})
+
+for dfs in fcounts.values():
+    print(dfs.sort_values(by=dfs.columns.values[0], ascending=False).head(10))
+    print()
+```
+```{python}
+#| echo: false
+#| output: false
+from sklearn.feature_extraction.text import CountVectorizer
+
+corpus = [str(x) for x in corpus]
+cvectorizer = CountVectorizer()
+cvectorizer.fit(corpus)
+pd.options.display.max_colwidth=750
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+cvtcorpus = cvectorizer.transform(corpus)
+cvtcorpus # cvtcorpus for count-vectorised transformed corpus
+
+doc_df = pd.DataFrame(cvtcorpus[0].T.todense(), 
+                      index=cvectorizer.get_feature_names_out(), columns=["Counts"]
+                     ).sort_values('Counts', ascending=False)
+doc_df.head(50)
+
+
+cvdf = pd.DataFrame(data=cvtcorpus.toarray(),
+                        columns=cvectorizer.get_feature_names_out())
+print(f"Raw count vectorised data frame has {cvdf.shape[0]:,} rows and {cvdf.shape[1]:,} columns.")
+cvdf.iloc[0:3,0:7]
+
+
+sums = cvdf.sum(axis=0)
+print(f"There are {len(sums):,} terms in the data set.")
+sums.head()
+
+filter_terms = sums >= cvdf.shape[0] * 0.01
+fcvdf = cvdf.drop(columns=cvdf.columns[~filter_terms].values)
+print(f"Filtered count vectorised data frame has {fcvdf.shape[0]:,} rows and {fcvdf.shape[1]:,} columns.")
+fcvdf.iloc[0:3,0:7]
+fcvdf.sum(axis=0)
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+# str_detect
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
+import re
+
+# n-gram + TF-IDF identifyer
+vectorizer = TfidfVectorizer(
+    ngram_range = (1, 3),   # unigram + bigram + trigram
+    max_df = 0.95,          # drop words which occured in 95%+ listings
+    min_df = 0.0005,         
+    stop_words = 'english'
+)
+
+tfidf_matrix = vectorizer.fit_transform(corpus)
+
+feature_names = np.array(vectorizer.get_feature_names_out())
+avg_tfidf = tfidf_matrix.mean(axis=0).A1  # 计算每列平均值
+tfidf_df = pd.DataFrame({'ngram': feature_names, 'avg_tfidf': avg_tfidf})
+
+# rank based on TF-IDF mean value，get top 50 words
+top_ngrams = tfidf_df.sort_values(by='avg_tfidf', ascending=False).head(50)
+print(top_ngrams)
+
+# delete outliers
+
+top_ngrams = top_ngrams[~top_ngrams['ngram'].str.contains(r'\bbr\b')]
+print(top_ngrams)
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+
+# calculate similarity (on shared/private listings)
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+top_keywords = list(top_ngrams['ngram'])
+top_keywords_set = set(top_keywords)
+
+str_shared_private['description'] = str_shared_private['description'].fillna('').astype(str)
+str_shared_private['description'] = clean_text(str_shared_private['description'])
+
+# method: jaccard
+# combine frequency & weighted frequency
+def jaccard_similarity(text):
+    words = set(text.split())
+    if not words:
+        return 0
+    intersection = words & top_keywords_set
+    union = words | top_keywords_set
+    return len(intersection) / len(union)
+
+
+str_shared_private['jaccard_sim'] = str_shared_private['description'].apply(jaccard_similarity)
+
+
+vectorizer = TfidfVectorizer(vocabulary=top_keywords)
+X_unknown = vectorizer.fit_transform(str_shared_private['description'])
+
+
+top_vec = np.ones((1, len(top_keywords)))
+top_vec = top_vec / np.linalg.norm(top_vec)
+
+# method: cosine
+cos_sim = cosine_similarity(X_unknown, top_vec)
+str_shared_private['tfidf_cos_sim'] = cos_sim[:, 0]
+
+# tail(top n% similarity, n can be reset)
+jaccard_thresh = str_shared_private['jaccard_sim'].quantile(0.90)
+cosine_thresh = str_shared_private['tfidf_cos_sim'].quantile(0.90)
+
+
+high_sim_entries = str_shared_private[
+    (str_shared_private['jaccard_sim'] >= jaccard_thresh) &
+    (str_shared_private['tfidf_cos_sim'] >= cosine_thresh)
+]
+
+print(high_sim_entries[['description', 'jaccard_sim', 'tfidf_cos_sim']])
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+str_shared_private[['jaccard_sim', 'tfidf_cos_sim']].describe()
+```
+
+### 2.2 How many properties would be affected by the opposition’s proposal?
+
+Since the opposition proposed that “professional landlords” should take the responsibility, we estimate 62,000+ (66.39% of London Airbnb market) units will be directly affected, as determined from our analysis in the previous question.
+
+#### Why these properties?
+
+Under the proposal, all 62,000+ professional properties will be subject to mandatory registration and taxed at a higher rate. Conversely the remaining approximately 33,000 ‘private and shared room’ accommodations (accounting for 33% of the market share) will be exempt from this tax. This provides the mayor with a political barrier protecting residents who rent out spare rooms for a living.
+
+Although the 62,000 units of housing only account for approximately 1.6% of the total 3.8 million housing units in London [@LHS2024], their impact is not uniform. Most of these affected properties are concentrated in Zones 1 and 2. For example, in Westminster, which recorded the UK’s highest short-let guest nights (around 3.9m in 2024) according to Housing Analysis Team [@ONS2025], the tax would affect approximately 8.8% of the borough’s housing stock. Therefore, this policy would be a targeted measure.
+
+Beyond the directly targeted short-term rental stock, non-professional hosts and renters will also experience the ripple effects through broader housing market dynamics. The opposition’s proposal could reduce a supplementary income stream from which they often support mortgages or living costs. More critically, while the policy aims to increase long-term supply, it risks pushing these properties into vacancy, sale, or less regulated grey-market letting.
+
+## 3. Evaluation of the proposal 
+
+### 3.1 What are the likely pros and cons of the opposition’s proposal? 
+
+The opposition’s  proposal helps the Mayor demonstrate responsiveness and leadership on the highly salient public concern of housing. Secondly, because the proposal targets professional landlords and areas where short-term rental pressures are most concentrated, it can also be presented as a proportionate and targeted intervention which reduces the political cost of decisive action. Besides, the proposal helps shift the conversation away from a personal scandal involving the Mayor’s advisor and towards a system-level regulatory challenge. Finally, mandatory registration creates a formal need for platform-held data, which makes it easier to push for structured data-sharing arrangements. However, to implement this proposal will present several potential risks. Firstly, as the Mayor did not introduce the policy initially, any implementation difficulties or a gap between promises and outcomes will be interpreted as evidence of weak leadership. Additionally, registration and licensing regimes are administratively complex and resource-intensive, which is difficult to deliver at scale. Experience in Scotland shows that delays in processing and limited enforcement capacity can turn the policy from a sign of control into evidence of administrative weakness. 
+
+For professional landlords, stricter regulations might bring more profits to those compliant operators, because guests tend to choose legal accommodations, which incentivises professional landlords to adhere to regulations [@botogarcia2024]. It also raises costs for non-compliant multi-listing operators, reducing unfair competition for those who operate within the rules. Meanwhile, higher compliance costs may reduce the relative attractiveness of short-term letting, prompting some properties to return to the long-term rental market. This could expand housing options for residents and, to some extent, improve neighbourhood stability and living conditions. However, the proposal would significantly increase operating costs for professional landlords. The attempt of passing the additional costs on to guests may cause customer reduction in a competitive market, creating further downward pressure on profitability. The proposal will also result in the loss of secondary income sources for some individuals, such as middle-class hosts renting their holiday properties and young investors letting their buy-to-let properties. These are misidentified as professional landlords. Additionally, in some areas where profits remain high, increased compliance costs may incentivise landlords to move transactions off-platform in order to avoid regulation, which is risky for both hosts and guests by removing both parties from platform safeguards.
+
+Firstly, the policy increases data availability and supports clearer enforcement of specific regulatory requirements by enabling more systematic registration. Secondly, the Council Tax can be used to pay for enforcement teams, neighbourhood services or affordable housing programmes thereby strengthening the policy’s legitimacy. Thirdly, it helps preserve local specificity in the regulation of rental housing markets. Research suggests that platforms often pursue uniform regulatory standards across cities to minimise compliance costs. This proposal however helps ground regulation in local contexts and supports data-driven and effective implementation[@ferreri2018]. However, there are several potential obstacles. Firstly, delivery and cost pressures are high. Registration or licensing requires ongoing investment in systems, processing inspections and enforcement [@scottish-government-2025] and implementation can be constrained by limited capacity and competing priorities [@propertymark-2024]. Secondly, stricter registration and higher tax treatment may reduce market dynamism by raising entry barriers for new and smaller platforms [@shabr2017]. Thirdly, locally tailored regulation in London may create friction with national frameworks. Short-term rentals cut across planning taxation data access and platform accountability which can conflict with more standardised UK-wide systems [@lord-tewdwr-jones-2014].
+
+### 3.2 Can the story be reframed as a positive one about social mobility or housing opportunity?
+
+In reviewing the narrative of the scandal, it is important to consider that the individual appears to belong to a middle-income professional group rather than an established capital owner. He may have entered the housing market through mortgage finance rather than inherited wealth and short-term letting may have assisted him in managing mortgage payments and living costs while gradually building assets in London. This context suggests a reinterpretation of the story through the lens of social mobility and housing opportunity.
+
+From a social mobility perspective, shared housing and buy-to-let properties provide rental income which offers young people additional financial resources and greater opportunities to remain in their homes. This enables them to have greater access to urban spaces including more employment and education opportunities and social interactions. For cities, objectively greater financial gains represent the vitality of the city’s economy which can attract more and more talent. This is particularly important for large cities such as London, @LGP2025 emphasises “Make sure London remains attractive for the best talent in the world” and “grow a skilled and diverse workforce” and “make housing more affordable”.
+
+In terms of housing opportunity, the proposal draws a clear line between genuine sharing and commercial activity. Clearer regulation helps ensure commercial STR develops in a controlled and sustainable way, and higher taxation of commercial operators can generate additional council revenue, which can be reinvested directly into addressing housing pressures.
+
+\newpage
+
+## References
