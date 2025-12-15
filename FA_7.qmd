@@ -4,17 +4,10 @@ subtitle: Data Analysis and Policy Briefing on Airbnb and Professional Landlords
 format:
   pdf:
     documentclass: article
-    title-page: false
     include-in-header:
       text: |
         \usepackage{ragged2e}
         \usepackage{xurl}
-        \usepackage{etoolbox}
-        \AtBeginDocument{\justify}
-        
-        \patchcmd{\maketitle}{\newpage}{}{}{}
-        
-        \setcounter{page}{1}
 
 execute:
   kernel: python3
@@ -170,6 +163,32 @@ references:
 In the middle of an election campaign, a media story linking a mayoral advisor to multiple Airbnb properties has intensified public concern about the role of short-term rentals in London’s housing crisis. In response, the opposition has proposed mandatory registration and higher Council Tax for professional landlords, arguing that Airbnb is “out of control.” As requested by the Mayor, this report assesses the scale of professional landlords and properties on Airbnb in London. On that basis, this report further evaluates the likely impacts of the opposition’s proposal for residents, landlords, and the city, using data, assumptions, and clear reasoning to inform strategic decisions.
 
 Full code and data can be found at the attached (<https://github.com/yxing82/fsds-group-project-insideairbnb>)
+
+```{python}
+#| echo: false
+#| output: false
+# --- CRITICAL PRE-IMPORT NLTK DOWNLOADS ---
+# This chunk ensures essential NLTK resources are present
+# BEFORE the textual module (C2) is imported, resolving LookupErrors.
+try:
+    import nltk
+    # Note: Using nltk.download() is safe here as it checks for existence first.
+    nltk.download("wordnet")
+    nltk.download("stopwords")
+    nltk.download("punkt")  
+    nltk.download("punkt_tab") 
+    nltk.download("averaged_perceptron_tagger")
+    
+    # Force load of the tagger resource to ensure path is cached
+    from nltk.tag import PerceptronTagger
+    PerceptronTagger() 
+    print("Pre-downloaded all required NLTK resources.")
+except ImportError:
+    # If NLTK isn't installed yet, this will be handled in C7
+    print("NLTK not yet installed. Proceeding to C7.")
+except Exception as e:
+    print(f"NLTK pre-download failed: {e}. Attempting full download in C8.")
+```
 
 ```{python}
 #| echo: false
